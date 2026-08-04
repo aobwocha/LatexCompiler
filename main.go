@@ -13,6 +13,8 @@ const (
 	TokenCommand TokenType = iota
 	TokenLBrace
 	TokenRBrace
+	TokenLBracket
+	TokenRBracket
 	TokenText
 )
 
@@ -77,6 +79,28 @@ func main() {
 			tokens = append(tokens, Token{
 				Type:     TokenRBrace,
 				Value:    "}",
+				StartIdx: startIdx,
+				EndIdx:   charIdx,
+				StartPos: startPos,
+				EndPos:   Position{Line: line, Col: col},
+			})
+
+		case '[':
+			advance()
+			tokens = append(tokens, Token{
+				Type:     TokenLBracket,
+				Value:    "[",
+				StartIdx: startIdx,
+				EndIdx:   charIdx,
+				StartPos: startPos,
+				EndPos:   Position{Line: line, Col: col},
+			})
+
+		case ']':
+			advance()
+			tokens = append(tokens, Token{
+				Type:     TokenRBracket,
+				Value:    "]",
 				StartIdx: startIdx,
 				EndIdx:   charIdx,
 				StartPos: startPos,
