@@ -138,7 +138,11 @@ func main() {
 			})
 
 		default:
-			for charIdx < len(latex) && latex[charIdx] != '\\' && latex[charIdx] != '{' && latex[charIdx] != '}' {
+			for charIdx < len(latex) {
+				c := latex[charIdx]
+				if c == '\\' || c == '{' || c == '}' || c == '[' || c == ']' {
+					break
+				}
 				advance()
 			}
 
