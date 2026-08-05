@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
+	"path/filepath"
 	"unicode"
 )
 
@@ -33,12 +33,20 @@ type Token struct {
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("Please provide a LaTeX string to parse.")
+	filePath := os.Args[1]
+
+	if filepath.Ext(filePath) != ".tex" {
+		fmt.Printf("Warning: File %q does not have a .tex extension\n", filePath)
+	}
+
+	// Read the file contents from disk
+	fileBytes, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Printf("Error reading file %q: %v\n", filePath, err)
 		return
 	}
 
-	latex := strings.Join(os.Args[1:], " ")
+	latex := string(fileBytes)
 	var tokens []Token
 
 	charIdx := 0
@@ -108,7 +116,7 @@ func main() {
 			})
 
 		case '\\':
-			advance() // Consume '\'
+			advance()
 
 			if charIdx < len(latex) {
 				if unicode.IsLetter(rune(latex[charIdx])) {
