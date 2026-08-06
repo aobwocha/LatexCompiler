@@ -15,6 +15,13 @@ static void append_node(NodeList *list, Node *node) {
     list->data[list->count++] = node;
 }
 
+static void append_node_list(NodeList *dest, NodeList src) {
+    for (size_t i = 0; i < src.count; i++) {
+        append_node(dest, src.data[i]);
+    }
+    free(src.data);
+}
+
 void free_node(Node *node) {
     if (!node) return;
     switch (node->type) {
@@ -102,16 +109,22 @@ static Node *parse_command(Parser *p) {
     node->as.command.opt_args = (NodeList){NULL, 0, 0};
     node->as.command.req_args = (NodeList){NULL, 0, 0};
 
-    if (!is_at_end(p) && peek(p).type == TOKEN_LBRACKET) {
-        consume(p, TOKEN_LBRACKET);
-        node->as.command.opt_args = parse_node_list(p);
-        consume(p, TOKEN_RBRACKET);
+    while (!is_at_end(p)) {
+        if (peek(p).type == TOKEN_LBRACKET) {
+            consume(p, TOKEN_LBRACKET);
+            NodeList new_args = parse_node_list(p);
+            append_node_list(&node->as.command.opt_args, new_args);
+            consume(p, TOKEN_RBRACKET);
+        } else if (peek(p).type == TOKEN_LBRACE) {
+            consume(p, TOKEN_LBRACE);
+            NodeList new_args = parse_node_list(p);
+            append_node_list(&node->as.command.req_args, new_args);
+            consume(p, TOKEN_RBRACE);
+        } else {
+            break;
+        }
     }
-    if (!is_at_end(p) && peek(p).type == TOKEN_LBRACE) {
-        consume(p, TOKEN_LBRACE);
-        node->as.command.req_args = parse_node_list(p);
-        consume(p, TOKEN_RBRACE);
-    }
+
     return node;
 }
 

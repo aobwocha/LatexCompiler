@@ -46,14 +46,14 @@ void print_ast(const Node *node, int indent, FILE *out) {
             for (int i = 0; i < indent; i++) fprintf(out, "  ");
             fprintf(out, "  OptArgs [...]:\n");
             for (size_t i = 0; i < node->as.command.opt_args.count; i++) {
-                print_ast(node->as.command.opt_args.data[i], indent + 2, out);
+                print_ast(node->as.command.opt_args.data[i], indent + 7, out);
             }
         }
         if (node->as.command.req_args.count > 0) {
             for (int i = 0; i < indent; i++) fprintf(out, "  ");
             fprintf(out, "  ReqArgs {...}:\n");
             for (size_t i = 0; i < node->as.command.req_args.count; i++) {
-                print_ast(node->as.command.req_args.data[i], indent + 2, out);
+                print_ast(node->as.command.req_args.data[i], indent + 7, out);
             }
         }
         break;
