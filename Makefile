@@ -1,8 +1,9 @@
 all:
-	gcc -std=c99 -Wall -Wextra -O2 -c main.c -o main.o
-	gcc -std=c99 -Wall -Wextra -O2 -c lexer.c -o lexer.o
-	gcc -std=c99 -Wall -Wextra -O2 -c parser.c -o parser.o
-	gcc main.o lexer.o parser.o -o latex_compiler
+	mkdir -p output
+	gcc -std=c99 -Wall -Werror -c src/main.c -o output/main.o
+	gcc -std=c99 -Wall -Werror -c src/lexer.c -o output/lexer.o
+	gcc -std=c99 -Wall -Werror -c src/parser.c -o output/parser.o
+	gcc output/main.o output/lexer.o output/parser.o -o output/latex_compiler
 
 clean:
-	rm -f main.o lexer.o parser.o latex_compiler
+	rm -rf output lexer_output.txt parser_output.txt
