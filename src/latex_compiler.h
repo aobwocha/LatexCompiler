@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 /* Lexer Types */
 
@@ -40,8 +41,9 @@ typedef struct {
 
 typedef enum {
     NODE_TEXT,
+    NODE_COMMAND,
     NODE_GROUP,
-    NODE_COMMAND
+    NODE_ENVIRONMENT
 } NodeType;
 
 struct Node;
@@ -60,18 +62,35 @@ typedef struct {
     NodeList children;
 } GroupNode;
 
+typedef enum {
+    ARG_OPTIONAL,
+    ARG_REQUIRED
+} ArgType;
+
+typedef struct {
+    ArgType type;
+    NodeList children;
+} CommandArg;
+
 typedef struct {
     char *name;
-    NodeList opt_args;
-    NodeList req_args;
+    CommandArg *args;
+    size_t arg_count;
+    size_t arg_capacity;
 } CommandNode;
+
+typedef struct {
+    char *name;
+    NodeList children;
+} EnvironmentNode;
 
 typedef struct Node {
     NodeType type;
     union {
         TextNode text;
-        GroupNode group;
         CommandNode command;
+        GroupNode group;
+        EnvironmentNode environment;
     } as;
 } Node;
 
@@ -87,7 +106,7 @@ void free_tokens(TokenList *list);
 
 // Parser
 Parser new_parser(const Token *tokens, size_t count);
-NodeList parse_node_list(Parser *p);
+NodeList parse_node_list(Parser *p, int stop_token);
 void free_node(Node *node);
 
 // Utility

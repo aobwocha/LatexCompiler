@@ -111,6 +111,14 @@ TokenList lex(const char *file_path, int *out_error) {
             ADVANCE();
             append_token(&list, (Token){.type = TOKEN_RBRACKET, .value = strdup("]"), .start_idx = start_idx, .end_idx = char_idx, .start_pos = start_pos, .end_pos = (Position){line, col}});
             break;
+        case '%':
+            while (char_idx < total_len && latex[char_idx] != '\n') {
+                ADVANCE();
+            }
+            if (char_idx < total_len && latex[char_idx] == '\n') {
+                ADVANCE();
+            }
+            break;
         case '\\':
             ADVANCE();
             if (char_idx < total_len) {
@@ -127,7 +135,7 @@ TokenList lex(const char *file_path, int *out_error) {
         default:
             while (char_idx < total_len) {
                 char c = latex[char_idx];
-                if (c == '\\' || c == '{' || c == '}' || c == '[' || c == ']') {
+                if (c == '\\' || c == '{' || c == '}' || c == '[' || c == ']'|| c == '%') {
                     break;
                 }
                 ADVANCE();

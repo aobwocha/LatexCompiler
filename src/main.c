@@ -42,18 +42,19 @@ void print_ast(const Node *node, int indent, FILE *out) {
         break;
     case NODE_COMMAND:
         fprintf(out, "CommandNode: %s\n", node->as.command.name ? node->as.command.name : "");
-        if (node->as.command.opt_args.count > 0) {
-            for (int i = 0; i < indent; i++) fprintf(out, "  ");
-            fprintf(out, "  OptArgs [...]:\n");
-            for (size_t i = 0; i < node->as.command.opt_args.count; i++) {
-                print_ast(node->as.command.opt_args.data[i], indent + 7, out);
+        for (size_t i = 0; i < node->as.command.arg_count; i++) {
+            CommandArg arg = node->as.command.args[i];
+            
+            for (int ind = 0; ind < indent; ind++) fprintf(out, "  ");
+            
+            if (arg.type == ARG_OPTIONAL) {
+                fprintf(out, "  OptArg [...]:\n");
+            } else {
+                fprintf(out, "  ReqArg {...}:\n");
             }
-        }
-        if (node->as.command.req_args.count > 0) {
-            for (int i = 0; i < indent; i++) fprintf(out, "  ");
-            fprintf(out, "  ReqArgs {...}:\n");
-            for (size_t i = 0; i < node->as.command.req_args.count; i++) {
-                print_ast(node->as.command.req_args.data[i], indent + 7, out);
+            
+            for (size_t j = 0; j < arg.children.count; j++) {
+                print_ast(arg.children.data[j], indent + 2, out);
             }
         }
         break;
@@ -61,6 +62,13 @@ void print_ast(const Node *node, int indent, FILE *out) {
         fprintf(out, "GroupNode {...}:\n");
         for (size_t i = 0; i < node->as.group.children.count; i++) {
             print_ast(node->as.group.children.data[i], indent + 1, out);
+        }
+        break;
+    case NODE_ENVIRONMENT: // New print case
+        fprintf(out, "EnvironmentNode \\begin{%s} ... \\end{%s}:\n", 
+               node->as.environment.name, node->as.environment.name);
+        for (size_t i = 0; i < node->as.environment.children.count; i++) {
+            print_ast(node->as.environment.children.data[i], indent + 1, out);
         }
         break;
     }
@@ -85,7 +93,7 @@ int main(int argc, char *argv[]) {
     }
 
     Parser parser = new_parser(token_list.tokens, token_list.count);
-    NodeList ast_nodes = parse_node_list(&parser);
+    NodeList ast_nodes = parse_node_list(&parser, -1);
 
     FILE *ast_out = fopen("parser_output.txt", "w");
     if (ast_out) {
