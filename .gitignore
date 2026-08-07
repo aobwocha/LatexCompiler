@@ -1,3 +1,5 @@
 *.tex
 *.txt
+*.json
+*.md
 output/

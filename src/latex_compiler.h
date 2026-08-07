@@ -6,8 +6,6 @@
 #include <stdio.h>
 #include <string.h>
 
-/* Lexer Types */
-
 typedef enum {
     TOKEN_COMMAND,
     TOKEN_LBRACE,
@@ -36,8 +34,6 @@ typedef struct {
     size_t count;
     size_t capacity;
 } TokenList;
-
-/* Parser & AST Types */
 
 typedef enum {
     NODE_TEXT,
@@ -101,17 +97,14 @@ typedef struct {
     size_t pos;
 } Parser;
 
-// Lexer
 TokenList lex(const char *file_path, int *out_error);
 void free_tokens(TokenList *list);
 
-// Parser
 Parser new_parser(const Token *tokens, size_t count);
 NodeList parse_node_list(Parser *p, int stop_token, const char *stop_env_name);
 void free_node(Node *node);
 
-// Utility
-void print_ast(const Node *node, int indent, FILE *out);
-void print_tokens(const TokenList *list, FILE *out);
+void expand_macros(NodeList *root);
+void serialize_ast_markdown(const NodeList *root, FILE *out);
 
 #endif
