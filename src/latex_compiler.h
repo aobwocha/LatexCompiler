@@ -81,6 +81,7 @@ typedef struct {
 
 typedef struct {
     char *name;
+    NodeList opt_args;
     NodeList children;
 } EnvironmentNode;
 
@@ -106,7 +107,7 @@ void free_tokens(TokenList *list);
 
 // Parser
 Parser new_parser(const Token *tokens, size_t count);
-NodeList parse_node_list(Parser *p, int stop_token);
+NodeList parse_node_list(Parser *p, int stop_token, const char *stop_env_name);
 void free_node(Node *node);
 
 // Utility

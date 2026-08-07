@@ -53,6 +53,10 @@ void free_node(Node *node) {
         break;
     case NODE_ENVIRONMENT:
         free(node->as.environment.name);
+        for (size_t i = 0; i < node->as.environment.opt_args.count; i++) {
+            free_node(node->as.environment.opt_args.data[i]);
+        }
+        free(node->as.environment.opt_args.data);
         for (size_t i = 0; i < node->as.environment.children.count; i++) {
             free_node(node->as.environment.children.data[i]);
         }
@@ -99,13 +103,23 @@ static Node *parse_group(Parser *p);
 static Node *parse_text(Parser *p);
 static Node *parse_environment(Parser *p);
 
-NodeList parse_node_list(Parser *p, int stop_token) {
+NodeList parse_node_list(Parser *p, int stop_token, const char *stop_env_name) {
     NodeList nodes = {NULL, 0, 0};
     while (!is_at_end(p)) {
         Token tok = peek(p);
 
-        if ((int)tok.type == stop_token) {
+        if (stop_token != -1 && (int)tok.type == stop_token) {
             break;
+        }
+
+        if (stop_env_name != NULL && tok.type == TOKEN_COMMAND && strcmp(tok.value, "\\end") == 0) {
+            if (p->pos + 2 < p->total_tokens && 
+                p->tokens[p->pos + 1].type == TOKEN_LBRACE &&
+                p->tokens[p->pos + 2].type == TOKEN_TEXT &&
+                strcmp(p->tokens[p->pos + 2].value, stop_env_name) == 0) 
+            {
+                break;
+            }
         }
 
         if (tok.type == TOKEN_COMMAND) {
@@ -126,42 +140,27 @@ NodeList parse_node_list(Parser *p, int stop_token) {
 }
 
 static Node *parse_environment(Parser *p) {
-    consume(p, TOKEN_COMMAND); 
+    consume(p, TOKEN_COMMAND);
     consume(p, TOKEN_LBRACE);
     
-    Token name_tok = peek(p);
+    Token name_tok = advance(p); 
     char *env_name = strdup(name_tok.value);
+    
     consume(p, TOKEN_RBRACE);
     
     Node *node = malloc(sizeof(Node));
     node->type = NODE_ENVIRONMENT;
     node->as.environment.name = env_name;
-    node->as.environment.children.data = NULL;
-    node->as.environment.children.count = 0;
-    node->as.environment.children.capacity = 0;
+    node->as.environment.opt_args = (NodeList){NULL, 0, 0};
+    node->as.environment.children = (NodeList){NULL, 0, 0};
 
-    NodeList children = {NULL, 0, 0};
-    while (!is_at_end(p)) {
-        Token next = peek(p);
-        
-        if (next.type == TOKEN_COMMAND && strcmp(next.value, "\\end") == 0) {
-            if (p->pos + 2 < p->total_tokens && 
-                p->tokens[p->pos + 1].type == TOKEN_LBRACE &&
-                p->tokens[p->pos + 2].type == TOKEN_TEXT &&
-                strcmp(p->tokens[p->pos + 2].value, env_name) == 0) 
-            {
-                break;
-            }
-        }
-        
-        NodeList sub_nodes = parse_node_list(p, -1); 
-        for(size_t i = 0; i < sub_nodes.count; i++) {
-             append_node(&children, sub_nodes.data[i]);
-        }
-        free(sub_nodes.data);
+    if (peek(p).type == TOKEN_LBRACKET) {
+        consume(p, TOKEN_LBRACKET);
+        node->as.environment.opt_args = parse_node_list(p, TOKEN_RBRACKET, NULL);
+        consume(p, TOKEN_RBRACKET);
     }
-    
-    node->as.environment.children = children;
+
+    node->as.environment.children = parse_node_list(p, -1, env_name);
     
     consume(p, TOKEN_COMMAND);
     consume(p, TOKEN_LBRACE);
@@ -183,12 +182,12 @@ static Node *parse_command(Parser *p) {
     while (!is_at_end(p)) {
         if (peek(p).type == TOKEN_LBRACKET) {
             consume(p, TOKEN_LBRACKET);
-            NodeList children = parse_node_list(p, TOKEN_RBRACKET);
+            NodeList children = parse_node_list(p, TOKEN_RBRACKET, NULL);
             consume(p, TOKEN_RBRACKET);
             append_command_arg(&node->as.command, ARG_OPTIONAL, children);
         } else if (peek(p).type == TOKEN_LBRACE) {
             consume(p, TOKEN_LBRACE);
-            NodeList children = parse_node_list(p, TOKEN_RBRACE);
+            NodeList children = parse_node_list(p, TOKEN_RBRACE, NULL);
             consume(p, TOKEN_RBRACE);
             append_command_arg(&node->as.command, ARG_REQUIRED, children);
         } else {
@@ -200,7 +199,7 @@ static Node *parse_command(Parser *p) {
 
 static Node *parse_group(Parser *p) {
     consume(p, TOKEN_LBRACE);
-    NodeList children = parse_node_list(p, TOKEN_RBRACE);
+    NodeList children = parse_node_list(p, TOKEN_RBRACE, NULL);
     consume(p, TOKEN_RBRACE);
 
     Node *node = malloc(sizeof(Node));

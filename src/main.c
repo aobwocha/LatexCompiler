@@ -64,9 +64,19 @@ void print_ast(const Node *node, int indent, FILE *out) {
             print_ast(node->as.group.children.data[i], indent + 1, out);
         }
         break;
-    case NODE_ENVIRONMENT: // New print case
-        fprintf(out, "EnvironmentNode \\begin{%s} ... \\end{%s}:\n", 
-               node->as.environment.name, node->as.environment.name);
+    case NODE_ENVIRONMENT:
+        fprintf(out, "EnvironmentNode \\begin{%s}\n", node->as.environment.name);
+        
+        if (node->as.environment.opt_args.count > 0) {
+            for (int i = 0; i < indent + 1; i++) fprintf(out, "  ");
+            fprintf(out, "OptArgs [...]:\n");
+            for (size_t i = 0; i < node->as.environment.opt_args.count; i++) {
+                print_ast(node->as.environment.opt_args.data[i], indent + 3, out);
+            }
+        }
+
+        for (int i = 0; i < indent; i++) fprintf(out, "  ");
+        fprintf(out, "Children:\n");
         for (size_t i = 0; i < node->as.environment.children.count; i++) {
             print_ast(node->as.environment.children.data[i], indent + 1, out);
         }
@@ -93,7 +103,7 @@ int main(int argc, char *argv[]) {
     }
 
     Parser parser = new_parser(token_list.tokens, token_list.count);
-    NodeList ast_nodes = parse_node_list(&parser, -1);
+    NodeList ast_nodes = parse_node_list(&parser, -1, NULL);
 
     FILE *ast_out = fopen("parser_output.txt", "w");
     if (ast_out) {
