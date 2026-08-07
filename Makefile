@@ -6,4 +6,4 @@ all:
 	gcc output/main.o output/lexer.o output/parser.o -o output/latex_compiler
 
 clean:
-	rm -rf output lexer_output.txt parser_output.txt
+	rm -rf output parser_output.json

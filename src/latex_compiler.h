@@ -110,8 +110,10 @@ Parser new_parser(const Token *tokens, size_t count);
 NodeList parse_node_list(Parser *p, int stop_token, const char *stop_env_name);
 void free_node(Node *node);
 
-// Utility
-void print_ast(const Node *node, int indent, FILE *out);
-void print_tokens(const TokenList *list, FILE *out);
+// JSON Output Utility Prototypes
+void print_json_string(const char *str, FILE *out);
+void print_indent(int indent, FILE *out);
+void print_node_list_json(const NodeList *list, int indent, FILE *out);
+void print_ast_json(const Node *node, int indent, FILE *out);
 
 #endif

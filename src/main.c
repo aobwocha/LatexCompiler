@@ -3,117 +3,156 @@
 #include <string.h>
 #include "latex_compiler.h"
 
-static void print_escaped_string(const char *str, FILE *out) {
+void print_json_string(const char *str, FILE *out) {
     fputc('"', out);
     if (str) {
         for (size_t i = 0; str[i] != '\0'; i++) {
-            if (str[i] == '\n')      fprintf(out, "\\n");
-            else if (str[i] == '"')  fprintf(out, "\\\"");
-            else                     fputc(str[i], out);
+            switch (str[i]) {
+                case '\\': fprintf(out, "\\\\"); break;
+                case '"':  fprintf(out, "\\\""); break;
+                case '\b': fprintf(out, "\\b"); break;
+                case '\f': fprintf(out, "\\f"); break;
+                case '\n': fprintf(out, "\\n"); break;
+                case '\r': fprintf(out, "\\r"); break;
+                case '\t': fprintf(out, "\\t"); break;
+                default:
+                    if ((unsigned char)str[i] < 0x20) {
+                        fprintf(out, "\\u%04x", (unsigned char)str[i]);
+                    } else {
+                        fputc(str[i], out);
+                    }
+                    break;
+            }
         }
     }
     fputc('"', out);
 }
 
-void print_tokens(const TokenList *list, FILE *out) {
-    if (!list || !list->tokens) return;
-    for (size_t i = 0; i < list->count; i++) {
-        Token t = list->tokens[i];
-        fprintf(out, "[Type: %d] \"", t.type);
-        if (t.value) {
-            for (size_t j = 0; t.value[j] != '\0'; j++) {
-                if (t.value[j] == '\n') fprintf(out, "\\n");
-                else fputc(t.value[j], out);
-            }
-        }
-        fprintf(out, "\"\n");
-    }
+void print_indent(int indent, FILE *out) {
+    for (int i = 0; i < indent; i++) fprintf(out, "  ");
 }
 
-void print_ast(const Node *node, int indent, FILE *out) {
-    if (!node) return;
-    for (int i = 0; i < indent; i++) fprintf(out, "  ");
+void print_node_list_json(const NodeList *list, int indent, FILE *out) {
+    fprintf(out, "[\n");
+    for (size_t i = 0; i < list->count; i++) {
+        print_ast_json(list->data[i], indent + 1, out);
+        if (i + 1 < list->count) {
+            fprintf(out, ",");
+        }
+        fprintf(out, "\n");
+    }
+    print_indent(indent, out);
+    fprintf(out, "]");
+}
+
+void print_ast_json(const Node *node, int indent, FILE *out) {
+    if (!node) {
+        fprintf(out, "null");
+        return;
+    }
+
+    print_indent(indent, out);
+    fprintf(out, "{\n");
 
     switch (node->type) {
     case NODE_TEXT:
-        fprintf(out, "TextNode: ");
-        print_escaped_string(node->as.text.value, out);
+        print_indent(indent + 1, out);
+        fprintf(out, "\"type\": \"TextNode\",\n");
+        print_indent(indent + 1, out);
+        fprintf(out, "\"value\": ");
+        print_json_string(node->as.text.value, out);
         fprintf(out, "\n");
         break;
+
     case NODE_COMMAND:
-        fprintf(out, "CommandNode: %s\n", node->as.command.name ? node->as.command.name : "");
+        print_indent(indent + 1, out);
+        fprintf(out, "\"type\": \"CommandNode\",\n");
+        print_indent(indent + 1, out);
+        fprintf(out, "\"name\": ");
+        print_json_string(node->as.command.name, out);
+        fprintf(out, ",\n");
+        
+        print_indent(indent + 1, out);
+        fprintf(out, "\"args\": [\n");
         for (size_t i = 0; i < node->as.command.arg_count; i++) {
             CommandArg arg = node->as.command.args[i];
+            print_indent(indent + 2, out);
+            fprintf(out, "{\n");
             
-            for (int ind = 0; ind < indent; ind++) fprintf(out, "  ");
+            print_indent(indent + 3, out);
+            fprintf(out, "\"type\": %s,\n", arg.type == ARG_OPTIONAL ? "\"optional\"" : "\"required\"");
             
-            if (arg.type == ARG_OPTIONAL) {
-                fprintf(out, "  OptArg [...]:\n");
-            } else {
-                fprintf(out, "  ReqArg {...}:\n");
-            }
+            print_indent(indent + 3, out);
+            fprintf(out, "\"children\": ");
+            print_node_list_json(&arg.children, indent + 3, out);
+            fprintf(out, "\n");
             
-            for (size_t j = 0; j < arg.children.count; j++) {
-                print_ast(arg.children.data[j], indent + 2, out);
-            }
+            print_indent(indent + 2, out);
+            fprintf(out, "}%s\n", (i + 1 < node->as.command.arg_count) ? "," : "");
         }
+        print_indent(indent + 1, out);
+        fprintf(out, "]\n");
         break;
-    case NODE_GROUP:
-        fprintf(out, "GroupNode {...}:\n");
-        for (size_t i = 0; i < node->as.group.children.count; i++) {
-            print_ast(node->as.group.children.data[i], indent + 1, out);
-        }
-        break;
-    case NODE_ENVIRONMENT:
-        fprintf(out, "EnvironmentNode \\begin{%s}\n", node->as.environment.name);
-        
-        if (node->as.environment.opt_args.count > 0) {
-            for (int i = 0; i < indent + 1; i++) fprintf(out, "  ");
-            fprintf(out, "OptArgs [...]:\n");
-            for (size_t i = 0; i < node->as.environment.opt_args.count; i++) {
-                print_ast(node->as.environment.opt_args.data[i], indent + 3, out);
-            }
-        }
 
-        for (int i = 0; i < indent; i++) fprintf(out, "  ");
-        fprintf(out, "Children:\n");
-        for (size_t i = 0; i < node->as.environment.children.count; i++) {
-            print_ast(node->as.environment.children.data[i], indent + 1, out);
-        }
+    case NODE_GROUP:
+        print_indent(indent + 1, out);
+        fprintf(out, "\"type\": \"GroupNode\",\n");
+        print_indent(indent + 1, out);
+        fprintf(out, "\"children\": ");
+        print_node_list_json(&node->as.group.children, indent + 1, out);
+        fprintf(out, "\n");
+        break;
+
+    case NODE_ENVIRONMENT:
+        print_indent(indent + 1, out);
+        fprintf(out, "\"type\": \"EnvironmentNode\",\n");
+        print_indent(indent + 1, out);
+        fprintf(out, "\"name\": ");
+        print_json_string(node->as.environment.name, out);
+        fprintf(out, ",\n");
+
+        print_indent(indent + 1, out);
+        fprintf(out, "\"opt_args\": ");
+        print_node_list_json(&node->as.environment.opt_args, indent + 1, out);
+        fprintf(out, ",\n");
+
+        print_indent(indent + 1, out);
+        fprintf(out, "\"children\": ");
+        print_node_list_json(&node->as.environment.children, indent + 1, out);
+        fprintf(out, "\n");
         break;
     }
+
+    print_indent(indent, out);
+    fprintf(out, "}");
 }
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        printf("Pass LaTEX file\n");
-        return 0;
+        fprintf(stderr, "Usage: %s <file.tex>\n", argv[0]);
+        return 1;
     }
 
     int lex_err = 0;
     TokenList token_list = lex(argv[1], &lex_err);
     if (lex_err) return 1;
 
-    FILE *lex_out = fopen("lexer_output.txt", "w");
-    if (lex_out) {
-        print_tokens(&token_list, lex_out);
-        fclose(lex_out);
-    } else {
-        printf("Failed to open lexer_output.txt for writing.\n");
-    }
-
     Parser parser = new_parser(token_list.tokens, token_list.count);
     NodeList ast_nodes = parse_node_list(&parser, -1, NULL);
 
-    FILE *ast_out = fopen("parser_output.txt", "w");
-    if (ast_out) {
-        for (size_t i = 0; i < ast_nodes.count; i++) {
-            fprintf(ast_out, "[%zu] ", i);
-            print_ast(ast_nodes.data[i], 0, ast_out);
-        }
-        fclose(ast_out);
-    } else {
-        printf("Failed to open parser_output.txt for writing.\n");
+    const char *output_file = "parser_output.json";
+    FILE *out = fopen(output_file, "w");
+    if (!out) {
+        perror("Failed to open parser_output.json for writing");
+        out = stdout;
+    }
+
+    fprintf(out, "{\n  \"type\": \"RootNode\",\n  \"children\": ");
+    print_node_list_json(&ast_nodes, 1, out);
+    fprintf(out, "\n}\n");
+
+    if (out != stdout) {
+        fclose(out);
     }
 
     for (size_t i = 0; i < ast_nodes.count; i++) {
